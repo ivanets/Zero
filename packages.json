@@ -1,0 +1,15 @@
+{
+  packages: {
+    zero/zero-test-app: {
+      dev-trunk: {
+        name: "zero/zero-test-app",
+        version: "dev-trunk",
+        source: {
+          type: "svn",
+          url: "http://svn.phpcode.in.ua/zeroApp",
+          reference: "trunk/"
+        }
+      }
+    }
+  }
+}

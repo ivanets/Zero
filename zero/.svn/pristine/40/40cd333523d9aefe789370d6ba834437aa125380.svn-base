@@ -1,0 +1,54 @@
+<?php
+
+namespace Zero\Scaffolding;
+
+class ModelsGenerator {
+
+	private $plan = [];
+	private $models = [];
+	
+	function __construct (ApplicationArchitecture $arch) {
+		$this->plan = $arch->getPlan();
+
+		$modelsList = [];
+		foreach($this->plan as $v) {
+			$modelsList = array_values(array_unique(array_merge($modelsList, $v['models'])));
+		}
+		
+		$models = [];
+		foreach($modelsList as $v) {
+			$parts = explode('\\', $v);
+			$name = array_pop($parts);
+			$namespace = implode('\\', $parts);
+			$models[$v] = [
+				'name' => $name,
+				'namespace' => $namespace
+			];		
+		}		
+		
+		$this->models = $models;
+	}
+	
+	private function parseTemplate($_DATA) {
+		ob_start();
+		include(__DIR__.'/templates/model.tpl.php');
+		return ob_get_clean();			
+	}
+	
+	public function makeModels($modelsFolder, $appNamespace, $force = false) {
+		foreach($this->models as $model) {
+			$model['app'] = $appNamespace;
+			$body = "<?php\n".$this->parseTemplate($model);
+			$dir = trim($modelsFolder.'/'.str_replace('\\', '/', $model['namespace']), '/');
+			$file = $dir.'/'.$model['name'].'.php';
+			if (!file_exists($dir)) {
+				mkdir($dir, 0775, true);
+				chmod($dir, 0775);
+			}
+			if (!file_exists($file) || $force) {
+				file_put_contents($file, $body);
+				chmod($file, 0775);
+			}
+		}
+	}
+}

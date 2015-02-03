@@ -1,0 +1,17 @@
+{
+    "name": "zero/zero",
+    "description": "Zero is lightweight PHP framework for creating REST API app",
+    "type": "library",
+    "keywords": ["framework"],
+    "homepage": "http://zero.phpcode.in.ua/doc",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Nickeras",
+            "email": "nickeras@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": { "Zero\\": "/" }
+    }
+}

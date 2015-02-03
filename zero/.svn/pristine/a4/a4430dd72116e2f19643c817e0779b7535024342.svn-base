@@ -1,0 +1,138 @@
+<?php
+/**
+* Class for "Zero Framework"
+* @author Nickeras
+* @version 0.5
+* @package Zero
+*/
+
+namespace Zero\Scaffolding;
+/**
+ * Generating basic code by plan.
+ */
+class ApplicationArchitecture {
+
+	private $plan;
+
+	function __construct ($planFile) {
+		if (!$planFile && !file_exists($planFile)) {
+			throw new \Exception('Can\'t find plan file: '.$planFile, 601);
+		}
+		$this->plan = $this->parse($this->load($planFile));
+	}
+/**
+ * Load plan file.
+ * @param string $file filename
+ * @return array plan
+ */
+	private function load($file) {
+		$plan = file($file);
+
+		foreach ($plan as $k => $v) {
+			$comment = strpos($v, '#');
+			$plan[$k] = trim( ($comment !== false ) ? substr($v, 0, $comment) : $v );
+			if (!$plan[$k])
+				unset($plan[$k]);
+		}
+		$plan = array_values($plan);
+		$count = count($plan);
+		for($k = 0; $k < $count; $k++) {
+			$v = $plan[$k];
+			if (strpos($v, '@') === 0 ) {
+				$include = dirname($file)."/".substr(trim($v),1);
+				if (file_exists($include)) {
+					array_splice($plan, $k, 1, $this->load($include));
+				} else {
+					unset($plan[$k]);
+				}
+			}
+		}
+		return $plan;
+	}
+/**
+ * Parse plan file.
+ * Transform rules to regexp and aggregate data
+ * @param array $plan plan
+ * @return array parsed plan
+ */
+	private function parse($plan) {
+		$parsed = [];
+		$parents = [];
+		foreach($plan as $k => $row) {
+			if ($row == '{') {
+				continue;
+			}
+			if ($row == '}') {
+				array_pop($parents);
+				continue;
+			}
+
+			$parts = explode(' ', $row);
+
+			$method = array_shift($parts);
+			$pattern = array_shift($parts);
+			$controller = array_shift($parts);
+
+			$controller = explode('.', $controller);
+			if (!isset($controller[1]))
+				$controller[1] = 'index';
+
+			$params = [];
+			preg_match_all('#\{([^:\}]*)[:\}]#', $pattern, $var);
+			$params = array_fill_keys($var[1], null);
+
+			$models = [];
+			$services = [];
+			$js = false;
+			foreach ($parts as $v) {
+				$v = trim($v);
+				if (preg_match('#^\[(.*)=(.*)\]$#', $v, $default)) {
+					$params[$default[1]] = $default[2];
+				} elseif (preg_match('#^<(.*)>$#', $v, $model)) {
+					$models[] = $model[1];
+				} elseif (preg_match('#^\((.*)\)$#', $v, $service)) {
+					$services[] = $service[1];
+				} elseif ($v == '$') {
+					$js = true;
+				}
+			}
+
+			$rule = [
+				'method' => $method,
+				'pattern' => $pattern,
+				'controller' => $controller[0],
+				'action' => $controller[1],
+				'params' => $params,
+				'models' => $models,
+				'services' => $services,
+				'js' => $js
+			];
+
+			if (!empty($parents)) {
+				$p = $parents[count($parents)-1];
+				$rule['pattern'] = $p['pattern'].$rule['pattern'];
+				if (!$rule['controller'])
+					$rule['controller'] = $p['controller'];
+			}
+
+			if (isset($plan[$k+1]) && $plan[$k+1] == '{') {
+				array_push($parents, $rule);
+			}
+
+			if (!$rule['controller']) {
+				throw new \Exception("There's no controller in plan", 600);
+				continue;
+			}
+
+			$parsed[] = $rule;
+		}
+		return $parsed;
+	}
+/**
+ * Get plan.
+ * @return array plan
+ */
+	public function getPlan() {
+		return $this->plan;
+	}
+}

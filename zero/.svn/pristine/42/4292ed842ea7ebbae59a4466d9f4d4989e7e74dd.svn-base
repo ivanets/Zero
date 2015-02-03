@@ -1,0 +1,92 @@
+<?php
+/**
+* Class for "Zero Framework"
+* @author Nickeras
+* @version 0.2
+* @package Zero
+*/
+namespace Zero\HTTP;
+/**
+ * Wrap request.
+ * Implements ArrayAccess
+ */
+class Request implements \ArrayAccess {
+
+	private $_values = [];
+	private $headers = [];
+	private $method = false;
+	private $protocol = false;
+
+	function __construct()	{
+		$this->method = $_SERVER['REQUEST_METHOD'];
+		$this->protocol = $_SERVER['SERVER_PROTOCOL'];
+		$this->headers = apache_request_headers();
+
+		switch ($this->method) {
+			case 'OPTION':
+			case 'HEAD':
+			case 'DELETE':
+			case 'PUT':
+				// read PUT
+			case 'POST':
+				$val = $_POST;
+			case 'GET':
+			default:
+				$val = $_GET;
+		}
+
+		if ($this->method != 'GET' && !empty($_GET)) {
+			$val = array_merge($_GET, $val);
+		}
+
+		$this->_values = $this->recursiveEscape($val);
+	}
+
+	function getMethod(){
+		return $this->method;
+	}
+
+	function getProtocol(){
+		return $this->protocol;
+	}
+
+	function getHeaders(){
+		return $this->headers;
+	}
+
+	private function escape($element){
+		return trim(htmlspecialchars($element,ENT_QUOTES));
+
+	}
+
+	private function recursiveEscape($tmp){
+		if (!is_array($tmp)) {
+			return $this->escape($tmp);
+		} else {
+			$new = [];
+			foreach ($tmp as $k => $v) {
+				$new[$this->escape($k)] = $this->recursiveEscape($v);
+			}
+			return $new;
+		}
+
+	}
+
+	//ArrayAccess
+
+	function offsetExists($offset) {
+		return array_key_exists($offset, $this->_values);
+	}
+
+	function offsetGet($offset) {
+		if (array_key_exists($offset, $this->_values))
+			return $this->_values[$offset];
+		else
+			return null;
+	}
+
+	function offsetSet($offset, $value) {}
+
+	function offsetUnset($offset) {}
+
+}
